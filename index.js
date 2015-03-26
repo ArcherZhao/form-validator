@@ -34,23 +34,20 @@
 		}
 		return obj;
 	};
+	var regPhone = /^(?:(?:1(?:3[4-9]|5[012789]|8[78])\d{8}|1(?:3[0-2]|5[56]|8[56])\d{8}|18[0-9]\d{8}|1[35]3\d{8})|14[57]\d{8}|170[059]\d{7}|17[67]\d{8})$/,
+		regMail = /^([_a-zA-Z\d\-\.])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/;
 
-	var method = {
-		isPhone: function () {
-			return /^(?:(?:1(?:3[4-9]|5[012789]|8[78])\d{8}|1(?:3[0-2]|5[56]|8[56])\d{8}|18[0-9]\d{8}|1[35]3\d{8})|14[57]\d{8}|170[059]\d{7}|17[67]\d{8})$/.test(this);
-		},
-		isMail: function () {
-			return /^([_a-zA-Z\d\-\.])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/.test(this);
-		},
-		isFill: function () {
-			return this.length !== 0;
-		},
-		isPassword: function () {
-			return /^[a-zA-Z0-9_-]{6,20}$/.test(this);
-		}
+	validator.isPhone = function (str){
+		return regPhone.test(str);
 	};
+	validator.isMail = function(str){
+		return regMail.test(str);
+	}
+	validator.isFill = function (str) {
+		return str.length !== 0;
+	}
 
-	validator.extend(String.prototype, method);
+
 	
 	var Model = validator.Model = function (dom) {
 		if (!(dom && dom instanceof Element)) {
