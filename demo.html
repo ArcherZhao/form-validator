@@ -3,19 +3,30 @@
 <head>
 	<meta charset="UTF-8">
 	<title>a simple demo</title>
+	<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
+	<script src="index.js"></script>
 </head>
 <body>
 	<form action="">
 		<input type="text" maxlength="10" required="required">
-		<input type="email" rg_type="email">
-		<input type="tel" rg_type="tel">
-		<input type="number" rg_type="number">
-		<input type="password" rg_tag="pw">
-		<input type="password" rg_tag="pw">
-		<input type="time" rg_tag="time">
+		<input type="email" rg-type="email">
+		<input type="tel" rg-type="tel">
+		<input type="number" rg-type="number">
+		<input type="number" rg-type="number" max="50">
+		<input type="password" rg-tag="pw">
+		<input type="password" rg-tag="pw">
+		<input type="time" rg-tag="time">
 		<input type="range" max="20" min="5">
 		<input type="reset">
 		<input type="submit">
+		<div class="submit">提交</div>
 	</form>
+	<script>
+		var valid = new validator.Model($('form'));
+		$('.submit').click(function(e){
+			valid.valid();
+		})
+
+	</script>
 </body>
 </html>

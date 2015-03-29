@@ -24,16 +24,16 @@
 		regMail = /^([_a-zA-Z\d\-\.])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/;
 
 	validator.isPhone = function (str) {
-		return regPhone.test(str);
+		return str.length==0 || regPhone.test(str);
 	};
 	validator.isMail = function (str) {
-		return regMail.test(str);
+		return str.length==0 || regMail.test(str);
 	};
 	validator.isFill = function (str) {
 		return str.length !== 0;
 	};
 	validator.isNumber = function (str) {
-		return !isNaN(Number(str));
+		return str.length==0 || !isNaN(Number(str));
 	};
 
 
@@ -48,6 +48,7 @@
 			this._root.find('input').each(function (i, ele) {
 				var $ele = $(ele);
 				var val = $ele.val();
+
 				if ($ele.attr("required") && val.length === 0) {
 
 					$ele.addClass("wrong").attr({
@@ -77,6 +78,7 @@
 					});
 
 				} else if ($ele.attr('rg-type')) {
+
 					switch ($ele.attr('rg-type')) {
 					case 'number':
 						if (!validator.isNumber(val)) {
@@ -84,27 +86,35 @@
 								'rg-status': 'wrong',
 								'rg-msg': "noNumber"
 							});
+						} else {
+							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
 						}
 						break;
 					case 'tel':
-						if (validator.isPhone(val)) {
+						if (!validator.isPhone(val)) {
 							$ele.addClass("wrong").attr({
 								'rg-status': 'wrong',
 								'rg-msg': "noPhone"
 							});
+						} else {
+							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
 						}
 						break;
 					case 'email':
-						if (validator.isMail(val)) {
+						if (!validator.isMail(val)) {
 							$ele.addClass("wrong").attr({
 								'rg-status': 'wrong',
 								'rg-msg': "noMail"
 							});
+						} else {
+							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
 						}
 						break;
 					default:
 						break;
 					}
+				} else {
+					$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
 				}
 			});
 			this._root.find('textarea').each(function (i, ele) {
@@ -124,12 +134,16 @@
 						'rg-msg': "tooLong"
 					});
 
+				}else {
+					$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
 				}
 			});
-			if(this._root.find('[rg-status="wrong"]').length > 0) {
-				callback(this._root.find('[rg-status="wrong"]'));
-			} else {
-				callback(null, this._root);
+			if (callback){
+				if(this._root.find('[rg-status="wrong"]').length > 0) {
+					callback(this._root.find('[rg-status="wrong"]'));
+				} else {
+					callback(null, this._root);
+				}
 			}
 		};
 	};
