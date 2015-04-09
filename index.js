@@ -13,7 +13,7 @@
 	var previousValidator = root.validator,
 		validator = {};
 
-	validator.VERSION = '0.0.1';
+	validator.VERSION = '0.0.2';
 
 	validator.noConflict = function () {
 		root.validator = previousValidator;
@@ -24,128 +24,101 @@
 		regMail = /^([_a-zA-Z\d\-\.])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/;
 
 	validator.isPhone = function (str) {
-		return str.length==0 || regPhone.test(str);
+		return str.length == 0 || regPhone.test(str);
 	};
 	validator.isMail = function (str) {
-		return str.length==0 || regMail.test(str);
+		return str.length == 0 || regMail.test(str);
 	};
 	validator.isFill = function (str) {
 		return str.length !== 0;
 	};
 	validator.isNumber = function (str) {
-		return str.length==0 || !isNaN(Number(str));
+		return str.length == 0 || !isNaN(Number(str));
 	};
 
-
-
-	var Model = validator.Model = function (dom) {
-		if (!dom) {
-			this._root = null;
-		} else {
-			this._root = dom;
+	var makeId = validator.uniqueId = function(prefix) {
+		var idCounter = 0;
+		return function(){
+			var id = (idCounter++).toString();
+			return prefix ? prefix + id : id;
 		}
-		this.valid = function (callback) {
-			this._root.find('input').each(function (i, ele) {
-				var $ele = $(ele);
-				var val = $ele.val();
-
-				if ($ele.attr("required") && val.length === 0) {
-
-					$ele.addClass("wrong").attr({
-						'rg-msg': "null",
-						'rg-status': 'wrong'
-					});
-
-				} else if ($ele.attr('maxlength') && val.length > $ele.attr('maxlength')) {
-
-					$ele.addClass("wrong").attr({
-						'rg-status': 'wrong',
-						'rg-msg': "tooLong"
-					});
-
-				} else if ($ele.attr('max') && Number(val) > $ele.attr('max')) {
-
-					$ele.addClass("wrong").attr({
-						'rg-status': 'wrong',
-						'rg-msg': "tooBig"
-					});
-
-				} else if ($ele.attr('min') && Number(val) < $ele.attr('min')) {
-
-					$ele.addClass("wrong").attr({
-						'rg-status': 'wrong',
-						'rg-msg': "tooSmall"
-					});
-
-				} else if ($ele.attr('rg-type')) {
-
-					switch ($ele.attr('rg-type')) {
-					case 'number':
-						if (!validator.isNumber(val)) {
-							$ele.addClass("wrong").attr({
-								'rg-status': 'wrong',
-								'rg-msg': "noNumber"
-							});
-						} else {
-							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
-						}
-						break;
-					case 'tel':
-						if (!validator.isPhone(val)) {
-							$ele.addClass("wrong").attr({
-								'rg-status': 'wrong',
-								'rg-msg': "noPhone"
-							});
-						} else {
-							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
-						}
-						break;
-					case 'email':
-						if (!validator.isMail(val)) {
-							$ele.addClass("wrong").attr({
-								'rg-status': 'wrong',
-								'rg-msg': "noMail"
-							});
-						} else {
-							$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
-						}
-						break;
-					default:
-						break;
-					}
-				} else {
-					$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
-				}
-			});
-			this._root.find('textarea').each(function (i, ele) {
-				var $ele = $(ele);
-				var val = $ele.val();
-				if ($ele.attr("required") && val.length === 0) {
-
-					$ele.addClass("wrong").attr({
-						'rg-status': 'wrong',
-						'rg-msg': "null"
-					});
-
-				} else if ($ele.attr('maxlength') && val.length > $ele.attr('maxlength')) {
-
-					$ele.addClass("wrong").attr({
-						'rg-status': 'wrong',
-						'rg-msg': "tooLong"
-					});
-
-				}else {
-					$ele.removeClass("wrong").removeAttr('rg-status rg-msg');
-				}
-			});
-			if (callback){
-				if(this._root.find('[rg-status="wrong"]').length > 0) {
-					callback(this._root.find('[rg-status="wrong"]'));
-				} else {
-					callback(null, this._root);
-				}
+	};
+	
+	function extend(obj) {
+		var length = arguments.length;
+		for (var index = 1; index < length; index++) {
+			var source = arguments[index];
+			for (var key in source) {
+				obj[key] = source[key];
 			}
+		}
+		return obj;
+	}
+	
+	var mId = makeId('m');
+	
+	var Model = validator.Model = function (par) {
+		this.model = {
+			value: '',
+			dom: null,
+			method: [],
+			status: 'unverify',
+			reason: ''
 		};
+		extend(this.model, par);
+		this.MID = mId();
+	};
+	
+	extend (Model.prototype, {
+		
+		fashion: function (obj){
+			extend(this.model, obj);
+		},
+		
+		remove: function (){
+			this.model = null;
+		},
+		
+		verify: function (){
+			this.status = 'verifying';
+			for(var i = 0, i < this.model.method, i++){
+				if (!validator[this.model.method[i]](this.model.value)){
+					this.model.status = 'fail';
+					this.model.reason = validator[this.model.method[i]].msg;
+					break;
+				}
+			};
+			this.model.status = this.model.status == 'fail' ? 'fail' : 'ok';
+		}
+	})
+	
+	var Form = validator.Form = function (par) {
+		this._root = par.dom || null;
+		this.event = par.event || 'blur';
+		this.content = [];
+		
+		var domList = this._root.querySelectorAll("[rg-rule]");
+		
+		for (var i = 0, i < domList.length, i++){
+			
+			var dom = domList[i];
+			var model = new Model({
+				value: dom.value || '',
+				dom: dom,
+				method: dom.getAttribute('rg-rule').split('|')
+			});
+			
+			this.content.push(model);
+			
+			dom.setAttribute('rg-model', model.MID);
+			
+		}
+		
+		dom.addEventListener(this.event, verify);
+		
+		function verify(e){
+			
+		}
 	};
 
 
