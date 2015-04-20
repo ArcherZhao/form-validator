@@ -7,26 +7,22 @@
 	<script src="index.js"></script>
 </head>
 <body>
-	<form action="">
-		<input type="text" maxlength="10" required="required">
-		<input type="email" rg-type="email">
-		<input type="tel" rg-type="tel">
-		<input type="number" rg-type="number">
-		<input type="number" rg-type="number" max="50">
-		<input type="password" rg-tag="pw">
-		<input type="password" rg-tag="pw">
-		<input type="time" rg-tag="time">
+	<form id="form" action="">
+		<input type="text" rg-rule="required">
+		<input type="email" rg-rule="email">
+		<input type="tel" rg-rule="tel">
+		<input type="text" rg-rule="number|maxlength_10|minlength_6">
+		<input type="text" rg-rule="number|max_50|min_40">
+		<input type="password" rg-rule="pw">
+		<input type="password" rg-rule="pw">
+		<input type="time" rg-rule="time">
 		<input type="range" max="20" min="5">
 		<input type="reset">
 		<input type="submit">
 		<div class="submit">提交</div>
 	</form>
 	<script>
-		var valid = new validator.Model($('form'));
-		$('.submit').click(function(e){
-			valid.valid();
-		})
-
+		var valid = new validator.Form({dom:document.getElementById('form'),event:"change"});
 	</script>
 </body>
 </html>

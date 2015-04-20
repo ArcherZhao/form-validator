@@ -2,7 +2,12 @@
 	'use strict';
 
 	if (typeof exports !== 'undefined') {
-		module.exports = factory(root);
+		if (typeof module !== 'undefined' && module.exports) {
+			exports = module.exports = factory(root);
+		} else {
+			exports = factory(root);
+		}
+
 	} else {
 		root.validator = factory(root);
 	}
@@ -13,7 +18,7 @@
 	var previousValidator = root.validator,
 		validator = {};
 
-	validator.VERSION = '0.0.2';
+	validator.VERSION = '0.1.0';
 
 	validator.noConflict = function () {
 		root.validator = previousValidator;
@@ -23,103 +28,169 @@
 	var regPhone = /^(?:(?:1(?:3[4-9]|5[012789]|8[78])\d{8}|1(?:3[0-2]|5[56]|8[56])\d{8}|18[0-9]\d{8}|1[35]3\d{8})|14[57]\d{8}|170[059]\d{7}|17[67]\d{8})$/,
 		regMail = /^([_a-zA-Z\d\-\.])+@([a-zA-Z0-9_-])+(\.[a-zA-Z0-9_-])+/;
 
-	validator.isPhone = function (str) {
-		return str.length == 0 || regPhone.test(str);
+	var method = validator.method = {
+		required: function(val) {
+			return val.length !== 0;
+		},
+		tel: function(val) {
+			return val.length == 0 || regPhone.test(val);
+		},
+		email: function(val) {
+			return val.length == 0 || regMail.test(val);
+		},
+		number: function(val) {
+			return val.length == 0 || !isNaN(Number(val));
+		},
+		int: function(val) {
+			return val.length == 0 || !isNaN(Number(val));
+		},
+		max: function(val, lim) {
+			return val.length == 0 || !isNaN(Number(val)) && Number(val) <= lim;
+		},
+		min: function(val, lim) {
+			return val.length == 0 || !isNaN(Number(val)) && Number(val) >= lim;
+		},
+		maxlength: function(val, lim) {
+			return val.length <= lim;
+		},
+		minlength: function(val, lim) {
+			return val.length >= lim;
+		}
 	};
-	validator.isMail = function (str) {
-		return str.length == 0 || regMail.test(str);
-	};
-	validator.isFill = function (str) {
-		return str.length !== 0;
-	};
-	validator.isNumber = function (str) {
-		return str.length == 0 || !isNaN(Number(str));
-	};
+	method.required.msg = "不能为空！";
+	method.tel.msg = "请输入合法手机号码！";
+	method.email.msg = "请输入合法邮箱！";
+	method.number.msg = "请输入数字！";
+	method.int.msg = "请输入整数！";
+	method.max.msg = "数字太大！";
+	method.min.msg = "数字太小！";
+	method.maxlength.msg = "数位太长！";
+	method.minlength.msg = "数位太短！";
 
-	var makeId = validator.uniqueId = function(prefix) {
+	var makeId = validator.uniqueId = function (prefix) {
 		var idCounter = 0;
-		return function(){
+		return function () {
 			var id = (idCounter++).toString();
 			return prefix ? prefix + id : id;
 		}
 	};
-	
+
 	function extend(obj) {
 		var length = arguments.length;
 		for (var index = 1; index < length; index++) {
 			var source = arguments[index];
 			for (var key in source) {
-				obj[key] = source[key];
+				if (source.hasOwnProperty(key)) {
+					obj[key] = source[key];
+				}
 			}
 		}
 		return obj;
 	}
-	
+
 	var mId = makeId('m');
-	
+
 	var Model = validator.Model = function (par) {
 		this.model = {
 			value: '',
 			dom: null,
 			method: [],
 			status: 'unverify',
-			reason: ''
+			prompts: {}
 		};
-		extend(this.model, par);
+		par && extend(this.model, par);
 		this.MID = mId();
 	};
-	
-	extend (Model.prototype, {
-		
-		fashion: function (obj){
+
+	extend(Model.prototype, {
+
+		fashion: function (obj) {
 			extend(this.model, obj);
 		},
-		
-		remove: function (){
+
+		destroy: function () {
 			this.model = null;
+			this.form = null;
 		},
-		
-		verify: function (){
-			this.status = 'verifying';
-			for(var i = 0, i < this.model.method, i++){
-				if (!validator[this.model.method[i]](this.model.value)){
-					this.model.status = 'fail';
-					this.model.reason = validator[this.model.method[i]].msg;
+
+		verify: function () {
+			var model = this.model,
+				arr;
+			model.status = 'verifying';
+			model.reason = "";
+
+			for (var i = 0; i < model.method.length; i++) {
+				arr = model.method[i].split('_');
+				if (validator.method[arr[0]] && !validator.method[arr[0]](model.value, arr[1])) {
+					model.status = 'fail';
+					model.reason = arr[0];
 					break;
 				}
 			};
-			this.model.status = this.model.status == 'fail' ? 'fail' : 'ok';
+
+			model.status = model.status == 'fail' ? 'fail' : 'ok';
+			console.log(model.prompts[model.reason] || model.prompts.all || validator.method[model.reason].msg);
 		}
 	})
-	
-	var Form = validator.Form = function (par) {
-		this._root = par.dom || null;
-		this.event = par.event || 'blur';
-		this.content = [];
-		
+
+	var Form = validator.Form = function (par, cb) {
+		if (par) {
+			this._root = par.dom || document;
+			this.event = par.event || (par.target ? 'click' : 'change');
+			this.target = par.target;
+		}
+
+		var that = this;
+		that.content = {};
+
 		var domList = this._root.querySelectorAll("[rg-rule]");
-		
-		for (var i = 0, i < domList.length, i++){
-			
-			var dom = domList[i];
+
+		for (var i = 0; i < domList.length; i++) {
+
+			var dom = domList[i],
+				prompts,
+				attrLength = dom.attributes.length;
+			for (var i = 0; i < attrLength; i++){
+				if (dom.attributes[i].name){
+
+				}
+			}
 			var model = new Model({
 				value: dom.value || '',
 				dom: dom,
-				method: dom.getAttribute('rg-rule').split('|')
+				method: dom.getAttribute('rg-rule').split('|'),
+				prompts:
 			});
-			
-			this.content.push(model);
-			
+			model.form = that;
+
+			that.content[model.MID] = model;
+
 			dom.setAttribute('rg-model', model.MID);
-			
+
+			if (!that.target) {
+				dom.addEventListener(this.event, function (event) {
+					that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
+					that.handle(event.target.getAttribute('rg-model'));
+				});
+			}
 		}
-		
-		dom.addEventListener(this.event, verify);
-		
-		function verify(e){
-			
+		if (that.target) {
+			that.target.addEventListener('click', function (event) {
+
+				for (var prop in that.content) {
+					if (that.content.hasOwnProperty(prop)) {
+						that.handle(prop, cb);
+					}
+				}
+			});
 		}
+
 	};
+	extend(Form.prototype, {
+		handle: function (mid, cb) {
+			this.content[mid].verify(cb);
+		}
+	});
 
 
 	return validator;
