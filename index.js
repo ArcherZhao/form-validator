@@ -113,7 +113,7 @@
 			this.form = null;
 		},
 
-		verify: function () {
+		verify: function (cb) {
 			var model = this.model,
 				arr;
 			model.status = 'verifying';
@@ -129,7 +129,21 @@
 			};
 
 			model.status = model.status == 'fail' ? 'fail' : 'ok';
-			console.log(model.prompts[model.reason] || model.prompts.all || validator.method[model.reason].msg);
+			if (window.$) {
+				if(model.status == 'fail'){
+					$(model.dom).addClass('wrong');
+				} else {
+					$(model.dom).removeClass('wrong');
+				}
+
+			} else {
+				if(model.status == 'fail'){
+					model.dom.className = model.dom.className.search(/\bwrong\b/) == -1 ? model.dom.className + ' wrong' : model.dom.className;
+				} else {
+					model.dom.className = model.dom.className.replace(/\bwrong\b/, "");
+				}
+			}
+			cb && cb(model.prompts[model.reason] || model.prompts.all || validator.method[model.reason].msg);
 		}
 	})
 
@@ -140,38 +154,46 @@
 			this.target = par.target;
 		}
 
+		var is$;
 		var that = this;
 		that.content = {};
-
-		var domList = this._root.querySelectorAll("[rg-rule]");
+		if(window.$ && this._root instanceof $){
+			is$ = true;
+			var domList = this._root.find("[rg-rule]");
+		} else {
+			var domList = this._root.querySelectorAll("[rg-rule]");
+		}
 
 		for (var i = 0; i < domList.length; i++) {
 
 			var dom = domList[i],
-				prompts,
-				attrLength = dom.attributes.length;
-			for (var i = 0; i < attrLength; i++){
-				if (dom.attributes[i].name){
+				prompts;
 
-				}
-			}
 			var model = new Model({
 				value: dom.value || '',
 				dom: dom,
 				method: dom.getAttribute('rg-rule').split('|'),
-				prompts:
+				prompts:{}
 			});
 			model.form = that;
 
 			that.content[model.MID] = model;
 
 			dom.setAttribute('rg-model', model.MID);
-
-			if (!that.target) {
-				dom.addEventListener(this.event, function (event) {
-					that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
-					that.handle(event.target.getAttribute('rg-model'));
-				});
+			if (is$){
+				if (!that.target) {
+					$(dom).on(this.event, function (event) {
+						that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
+						that.handle(event.target.getAttribute('rg-model'), cb);
+					});
+				}
+			} else {
+				if (!that.target) {
+					dom.addEventListener(this.event, function (event) {
+						that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
+						that.handle(event.target.getAttribute('rg-model'), cb);
+					});
+				}
 			}
 		}
 		if (that.target) {
