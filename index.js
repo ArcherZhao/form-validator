@@ -55,7 +55,18 @@
 		},
 		minlength: function(val, lim) {
 			return val.length >= lim;
-		}
+		},
+		same: (function(){
+			if(root.$) {
+				return function(val, tag) {
+					return val == root.$("[name="+tag+"]").val();
+				}
+			} else {
+				return function(val, tag) {
+					return val == document.querySelector("[name="+tag+"]").value;
+				}
+			}
+		}())
 	};
 	method.required.msg = "不能为空！";
 	method.tel.msg = "请输入合法手机号码！";
@@ -93,7 +104,7 @@
 	var Model = validator.Model = function (par) {
 		this.model = {
 			value: '',
-			dom: null,
+			form: null,
 			method: [],
 			status: 'unverify',
 			prompts: {}
@@ -113,9 +124,10 @@
 			this.form = null;
 		},
 
-		verify: function (cb) {
+		verify: function (cb, context) {
 			var model = this.model,
 				arr;
+			context = context ? context : root;
 			model.status = 'verifying';
 			model.reason = "";
 
@@ -129,7 +141,7 @@
 			};
 
 			model.status = model.status == 'fail' ? 'fail' : 'ok';
-			if (window.$) {
+			if (root.$) {
 				if(model.status == 'fail'){
 					$(model.dom).addClass('wrong');
 				} else {
@@ -143,21 +155,21 @@
 					model.dom.className = model.dom.className.replace(/\bwrong\b/, "");
 				}
 			}
-			cb && cb(model.prompts[model.reason] || model.prompts.all || validator.method[model.reason].msg);
+			model.status == 'fail' && cb && cb(model.prompts[model.reason] || model.prompts.all || validator.method[model.reason].msg);
 		}
 	})
 
-	var Form = validator.Form = function (par, cb) {
+	var Form = validator.Form = function (par, cb, context) {
 		if (par) {
-			this._root = par.dom || document;
-			this.event = par.event || (par.target ? 'click' : 'change');
+			this._root = par.form || document;
+			this.event = par.event || (par.target ? 'click' : 'blur');
 			this.target = par.target;
 		}
 
 		var is$;
 		var that = this;
 		that.content = {};
-		if(window.$ && this._root instanceof $){
+		if(root.$ && this._root instanceof $){
 			is$ = true;
 			var domList = this._root.find("[rg-rule]");
 		} else {
@@ -167,13 +179,19 @@
 		for (var i = 0; i < domList.length; i++) {
 
 			var dom = domList[i],
-				prompts;
+				attr = dom.attributes,
+				prompts = {};
+			for (var j = 0;j < attr.length; j++){
+				if(attr[j].name.match('rg-msg')){
+					prompts[attr[j].name.substring(7)] = attr[j].value;
+				}
+			}
 
 			var model = new Model({
 				value: dom.value || '',
 				dom: dom,
 				method: dom.getAttribute('rg-rule').split('|'),
-				prompts:{}
+				prompts: prompts
 			});
 			model.form = that;
 
@@ -184,33 +202,42 @@
 				if (!that.target) {
 					$(dom).on(this.event, function (event) {
 						that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
-						that.handle(event.target.getAttribute('rg-model'), cb);
+						that.handle(event.target.getAttribute('rg-model'), cb, context);
 					});
 				}
 			} else {
 				if (!that.target) {
 					dom.addEventListener(this.event, function (event) {
 						that.content[event.target.getAttribute('rg-model')].model.value = event.target.value;
-						that.handle(event.target.getAttribute('rg-model'), cb);
+						that.handle(event.target.getAttribute('rg-model'), cb, context);
 					});
 				}
 			}
 		}
 		if (that.target) {
-			that.target.addEventListener('click', function (event) {
-
-				for (var prop in that.content) {
-					if (that.content.hasOwnProperty(prop)) {
-						that.handle(prop, cb);
+			if(root.$){
+				$(that.target).on('click', function (event) {
+					for (var prop in that.content) {
+						if (that.content.hasOwnProperty(prop)) {
+							that.handle(prop, cb, context);
+						}
 					}
-				}
-			});
+				});
+			}else{
+				that.target.addEventListener('click', function (event) {
+					for (var prop in that.content) {
+						if (that.content.hasOwnProperty(prop)) {
+							that.handle(prop, cb, context);
+						}
+					}
+				});
+			}
 		}
 
 	};
 	extend(Form.prototype, {
-		handle: function (mid, cb) {
-			this.content[mid].verify(cb);
+		handle: function (mid, cb, context) {
+			this.content[mid].verify(cb, context);
 		}
 	});
 

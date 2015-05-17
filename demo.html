@@ -3,26 +3,28 @@
 <head>
 	<meta charset="UTF-8">
 	<title>a simple demo</title>
-<!--	<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>-->
+	<script src="http://code.jquery.com/jquery-1.11.2.min.js"></script>
 	<script src="index.js"></script>
 </head>
 <body>
 	<form id="form" action="">
-		<input type="text" rg-rule="required">
+		<input type="text" rg-rule="required" rg-msg-required="不可以为空">
 		<input type="email" rg-rule="email">
 		<input type="tel" rg-rule="tel">
 		<input type="text" rg-rule="number|maxlength_10|minlength_6" class="dfwrong">
 		<input type="text" rg-rule="number|max_50|min_40">
-		<input type="password" rg-rule="pw">
-		<input type="password" rg-rule="pw">
-		<input type="time" rg-rule="time">
-		<input type="range" max="20" min="5">
+		<input type="password" rg-rule="pw" name="password">
+		<input type="password" rg-rule="pw|same_password" rg-msg-same="不同">
+<!--		<input type="range" max="20" min="5">-->
 		<input type="reset">
 		<input type="submit">
 		<div class="submit">提交</div>
 	</form>
 	<script>
-		var valid = new validator.Form({dom:document.getElementById('form'),event:"change"});
+		var valid = new validator.Form({
+			form:document.getElementById('form'),
+			target: document.getElementsByClassName('submit')[0]
+		}, alert);
 	</script>
 </body>
 </html>
